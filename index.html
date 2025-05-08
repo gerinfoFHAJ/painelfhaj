@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Mídia</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; background: black; overflow: hidden; }
+    .media-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .media-container img, .media-container video {
+      max-width: 100%;
+      max-height: 100%;
+      display: none;
+    }
+    .media-container video {
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  display: none;
+}
+  </style>
+</head>
+<body>
+  <div class="media-container">
+    <img src="imgs/▷ Churros Rellenos【una combinación perfecta】 » Receta Venezolana.jpg" class="media" style="display: block;">
+    <video class="media" muted>
+      <source src="imgs/3.mp4" type="video/mp4">
+    </video>
+  </div>
+
+  <script>
+    const medias = document.querySelectorAll('.media');
+    let current = 0;
+
+    function showNextMedia() {
+      medias[current].style.display = 'none';
+      current = (current + 1) % medias.length;
+      medias[current].style.display = 'block';
+
+      if (medias[current].tagName === 'VIDEO') {
+        medias[current].currentTime = 0;
+        medias[current].play();
+        medias[current].onended = () => showNextMedia(); // avança ao terminar o vídeo
+      } else {
+        setTimeout(showNextMedia, 10000); // avança após 10s em imagens
+      }
+    }
+
+    // Começar o ciclo
+    if (medias[current].tagName === 'VIDEO') {
+      medias[current].play();
+      medias[current].onended = () => showNextMedia();
+    } else {
+      setTimeout(showNextMedia, 10000);
+    }
+  </script>
+</body>
+</html>
