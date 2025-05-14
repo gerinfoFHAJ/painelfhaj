@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Controle de Mídia FHAJ</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0; padding: 0; box-sizing: border-box;
+    }
+    body, html {
+      width: 100%; height: 100%;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #224235, #255a45, #2a805d);
+      color: #fff;
+    }
+    .login-container, .panel-container, .projecao-container {
+      display: none;
+      width: 100%;
+      height: 100vh;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+    }
+    .active {
+      display: flex;
+      opacity: 1;
+    }
+    .box {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+    }
+    .logo {
+    width: 150px;        
+    max-width: 90%;       
+    height: auto;
+    margin: 0 auto 20px;   
+    display: block;
+   }
+
+    input, select, button {
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 16px;
+      width: 100%;
+      border: 1px solid #555;
+      border-radius: 8px;
+      background: #16221d;
+      color: white;
+      outline: none;
+      transition: 0.3s ease;
+    }
+    input:focus, select:focus {
+      border-color: #224235;
+      background: #222;
+    }
+    button {
+      background: #22352d;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d2b25;
+    }
+    .file-list {
+      max-height: 150px;
+      overflow-y: auto;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .file-list li {
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .media {
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s ease;
+      z-index: 0;
+    }
+    .media.visible {
+      opacity: 1;
+      z-index: 1;
+    }
+    .pause-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+    .pause-overlay img {
+      max-width: 200px;
+    }
+    #pauseBtn {
+      padding: 10px 20px;
+      background: #224235;
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 3;
+      width: auto;
+      display: inline-block;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    #pauseBtn:hover {
+      background: #1c3a2c;
+    }
+  </style>
+</head>
+<body>
+  <!-- login -->
+  <div class="login-container active" id="login">
+    <div class="box">
+      <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="Logo" class="logo">
+      <h2>LOGIN</h2><br>
+      <input type="text" id="user" placeholder="Usuário">
+      <input type="password" id="pass" placeholder="Senha">
+      <button onclick="login()">ENTRAR</button>
+      <p id="login-error" style="color: #ff6666; margin-top: 10px;"></p>
+    </div>
+  </div>
+
+  <!-- painel -->
+  <div class="panel-container" id="panel">
+    <div class="box">
+      <h2>Painel de Controle</h2><br>
+      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <button onclick="setInputMode('local')">📁 Usar arquivos locais</button>
+        <button onclick="setInputMode('url')">🌐 Usar links da internet</button>
+      </div>
+      <div id="localInputDiv" style="display: none;">
+        <label>Selecionar arquivos de mídia:</label>
+        <input type="file" id="fileInput" accept="image/*,video/*" multiple>
+        <p style="font-size: 12px;">DICA: Crie uma pasta com imagens e vídeos para enviar todos de uma vez.</p>
+      </div>
+      <div id="urlInputDiv" style="display: none;">
+        <label>Adicionar link de mídia (imagem, vídeo ou YouTube):</label>
+        <input type="text" id="urlInput" placeholder="Cole aqui o link da mídia">
+        <button onclick="addUrl()">Adicionar Link</button>
+        <button onclick="clearSavedLinks()" style="background: #883333;">🗑️ Limpar links salvos</button>
+      </div>
+      <ul class="file-list" id="fileList"></ul>
+      <label>Duração das imagens (segundos):</label>
+      <input type="number" id="img-duration" value="10" min="1">
+      <label>Reproduzir vídeo com som?</label>
+      <select id="video-sound">
+        <option value="yes">Sim</option>
+        <option value="no" selected>Não</option>
+      </select>
+      <label>Reproduzir vídeo completo?</label>
+      <select id="video-full">
+        <option value="yes" selected>Sim</option>
+        <option value="no">Não (parar em 10s)</option>
+      </select>
+      <button onclick="startProjection()">Iniciar Projeção</button>
+    </div>
+  </div>
+
+  <!-- projecao -->
+  <div class="projecao-container" id="projecao">
+    <div id="mediaContainer" style="position: relative; width: 100vw; height: 100vh;"></div>
+    <div class="pause-overlay" id="pauseOverlay" style="display: none;">
+      <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="Logo Standby">
+    </div>
+    <button id="pauseBtn" onclick="togglePause()">⏸️ Pausar</button>
+  </div>
+
+  <script>
+    const validUsers = {
+      "comunicacao": "comunicacao",
+      "informatica": "informatica"
+    };
+
+    let localMedia = [];
+    let isPaused = false;
+    let current = 0;
+    let elements = [];
+
+    function login() {
+      const user = document.getElementById("user").value;
+      const pass = document.getElementById("pass").value;
+      const errorMsg = document.getElementById("login-error");
+
+      if (validUsers[user] === pass) {
+        document.getElementById("login").classList.remove("active");
+        document.getElementById("panel").classList.add("active");
+      } else {
+        errorMsg.textContent = "Usuário ou senha inválidos. Tente novamente.";
+      }
+    }
+
+    function setInputMode(mode) {
+      document.getElementById("localInputDiv").style.display = (mode === "local") ? "block" : "none";
+      document.getElementById("urlInputDiv").style.display = (mode === "url") ? "block" : "none";
+    }
+
+    const fileInput = document.getElementById("fileInput");
+    const fileList = document.getElementById("fileList");
+
+    fileInput.addEventListener("change", () => {
+      Array.from(fileInput.files).forEach(file => {
+        const url = URL.createObjectURL(file);
+        localMedia.push({ url, type: file.type });
+      });
+      updateFileList();
+    });
+
+    function addUrl() {
+      const url = document.getElementById("urlInput").value.trim();
+      if (url) {
+        let type = "link";
+        if (url.includes("youtube.com") || url.includes("youtu.be")) {
+          type = "youtube";
+        } else if (url.match(/\.(jpeg|jpg|gif|png)$/i)) {
+          type = "image";
+        } else if (url.match(/\.(mp4|webm|ogg)$/i)) {
+          type = "video";
+        }
+        const mediaObj = { url, type };
+        localMedia.push(mediaObj);
+        saveLinks();
+        updateFileList();
+        document.getElementById("urlInput").value = "";
+      }
+    }
+
+    function saveLinks() {
+      const savedLinks = localMedia.filter(item => item.url.startsWith("http"));
+      localStorage.setItem("mediaLinks", JSON.stringify(savedLinks));
+    }
+
+    function clearSavedLinks() {
+      localStorage.removeItem("mediaLinks");
+      localMedia = localMedia.filter(item => item.url.startsWith("blob:"));
+      updateFileList();
+    }
+
+    function updateFileList() {
+      fileList.innerHTML = "";
+      localMedia.forEach(item => {
+        const li = document.createElement("li");
+        li.textContent = item.url;
+        fileList.appendChild(li);
+      });
+    }
+
+    function startProjection() {
+      const duration = parseInt(document.getElementById("img-duration").value) * 1000;
+      const withSound = document.getElementById("video-sound").value === "yes";
+      const playFull = document.getElementById("video-full").value === "yes";
+
+      if (localMedia.length === 0) {
+        alert("Por favor, selecione ou adicione uma mídia.");
+        return;
+      }
+
+      document.getElementById("panel").classList.remove("active");
+      document.getElementById("projecao").classList.add("active");
+
+      const container = document.getElementById("mediaContainer");
+      container.innerHTML = "";
+      elements = [];
+      current = 0;
+      isPaused = false;
+      document.getElementById("pauseOverlay").style.display = "none";
+
+      localMedia.forEach(item => {
+        let el;
+        if (item.type === "youtube") {
+          el = document.createElement("iframe");
+          const videoId = item.url.split("v=")[1]?.split("&")[0] || item.url.split("/").pop();
+          el.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${withSound ? 0 : 1}`;
+          el.allow = "autoplay";
+        } else if (item.type.startsWith("video") || item.type === "video") {
+          el = document.createElement("video");
+          el.muted = !withSound;
+          el.controls = false;
+          el.src = item.url;
+        } else {
+          el = document.createElement("img");
+          el.src = item.url;
+        }
+        el.classList.add("media");
+        container.appendChild(el);
+        elements.push(el);
+      });
+
+      showNext(duration, playFull);
+    }
+
+    function showNext(duration, playFull) {
+      if (isPaused) return;
+
+      elements.forEach(el => el.classList.remove("visible"));
+      const el = elements[current];
+      el.classList.add("visible");
+
+      if (el.tagName === "VIDEO") {
+        el.currentTime = 0;
+        el.play();
+
+        if (playFull) {
+          el.onended = () => {
+            current = (current + 1) % elements.length;
+            showNext(duration, playFull);
+          };
+        } else {
+          setTimeout(() => {
+            el.pause();
+            current = (current + 1) % elements.length;
+            showNext(duration, playFull);
+          }, 10000);
+        }
+      } else {
+        setTimeout(() => {
+          current = (current + 1) % elements.length;
+          showNext(duration, playFull);
+        }, duration);
+      }
+    }
+
+    function togglePause() {
+      isPaused = !isPaused;
+      const overlay = document.getElementById("pauseOverlay");
+      if (isPaused) {
+        overlay.style.display = "flex";
+        elements.forEach(el => {
+          if (el.tagName === "VIDEO") el.pause();
+        });
+      } else {
+        overlay.style.display = "none";
+        showNext(
+          parseInt(document.getElementById("img-duration").value) * 1000,
+          document.getElementById("video-full").value === "yes"
+        );
+      }
+    }
+
+    window.onload = () => {
+      const saved = JSON.parse(localStorage.getItem("mediaLinks") || "[]");
+      saved.forEach(obj => localMedia.push(obj));
+      updateFileList();
+      
+      // identificar se é tv ou computador
+      const isTV = window.location.search.includes('tv=true');  // exemplo de parametro na url
+      if (isTV) {
+        // pra tv nao existe login, so começa a projeçao
+        document.getElementById("projecao").classList.add("active");
+      } else {
+        document.getElementById("login").classList.add("active");
+      }
+    };
+  </script>
+</body>
+</html>
