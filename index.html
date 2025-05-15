@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Controle de Mídia FHAJ</title>
+  <link rel="icon" type="image/png" href="static/imgs/logo.png">
   <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
-    * {
-      margin: 0; padding: 0; box-sizing: border-box;
-    }
+    /* ... seu CSS original ... */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body, html {
       width: 100%; height: 100%;
       font-family: 'Poppins', sans-serif;
@@ -38,13 +39,12 @@
       width: 90%;
     }
     .logo {
-    width: 150px;        
-    max-width: 90%;       
-    height: auto;
-    margin: 0 auto 20px;   
-    display: block;
-   }
-
+      width: 150px;
+      max-width: 90%;
+      height: auto;
+      margin: 0 auto 20px;
+      display: block;
+    }
     input, select, button {
       padding: 12px;
       margin: 10px 0;
@@ -81,7 +81,7 @@
     }
     .file-list li {
       font-size: 14px;
-      word-break: break-all;
+      word-break: break-word;
     }
     .media {
       position: absolute;
@@ -101,7 +101,7 @@
       top: 0; left: 0;
       width: 100vw;
       height: 100vh;
-      background-color: #000;
+      background-color: #224235;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -110,7 +110,7 @@
     .pause-overlay img {
       max-width: 200px;
     }
-    #pauseBtn {
+    #pauseBtn, #backBtn {
       padding: 10px 20px;
       background: #224235;
       border: none;
@@ -120,13 +120,20 @@
       cursor: pointer;
       position: absolute;
       top: 20px;
-      right: 20px;
       z-index: 3;
       width: auto;
-      display: inline-block;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
-    #pauseBtn:hover {
+    #pauseBtn {
+      right: 20px;
+    }
+    #backBtn {
+      left: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center; 
+    }
+    #pauseBtn:hover, #backBtn:hover {
       background: #1c3a2c;
     }
   </style>
@@ -135,11 +142,13 @@
   <!-- login -->
   <div class="login-container active" id="login">
     <div class="box">
-      <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="Logo" class="logo">
+      <img src="static/imgs/logo.png" alt="Logo" class="logo">
       <h2>LOGIN</h2><br>
-      <input type="text" id="user" placeholder="Usuário">
-      <input type="password" id="pass" placeholder="Senha">
-      <button onclick="login()">ENTRAR</button>
+      <form id="login-form">
+        <input type="text" id="user" placeholder="Usuário" autocomplete="username">
+        <input type="password" id="pass" placeholder="Senha" autocomplete="current-password">
+        <button type="submit">ENTRAR</button>
+      </form>      
       <p id="login-error" style="color: #ff6666; margin-top: 10px;"></p>
     </div>
   </div>
@@ -176,7 +185,7 @@
         <option value="yes" selected>Sim</option>
         <option value="no">Não (parar em 10s)</option>
       </select>
-      <button onclick="startProjection()">Iniciar Projeção</button>
+      <button onclick="startProjection()">Iniciar projeção</button>
     </div>
   </div>
 
@@ -184,9 +193,14 @@
   <div class="projecao-container" id="projecao">
     <div id="mediaContainer" style="position: relative; width: 100vw; height: 100vh;"></div>
     <div class="pause-overlay" id="pauseOverlay" style="display: none;">
-      <img src="{{ url_for('static', filename='imgs/logo.png') }}" alt="Logo Standby">
+      <img src="static/imgs/logo.png" alt="Logo Standby">
     </div>
-    <button id="pauseBtn" onclick="togglePause()">⏸️ Pausar</button>
+    <button id="pauseBtn" onclick="togglePause()" aria-label="Pausar/Retomar">
+      <i id="pauseIcon" class="bi bi-pause-fill" style="font-size: 1.4rem;"></i>
+    </button>    
+    <button id="backBtn" onclick="backToPanel()" aria-label="Voltar">
+      <i class="bi bi-arrow-return-left" style="font-size: 1.4rem;"></i>
+    </button>    
   </div>
 
   <script>
@@ -201,17 +215,28 @@
     let elements = [];
 
     function login() {
-      const user = document.getElementById("user").value;
-      const pass = document.getElementById("pass").value;
+      const user = document.getElementById("user").value.trim();
+      const pass = document.getElementById("pass").value.trim();
       const errorMsg = document.getElementById("login-error");
 
+      if (!user || !pass) {
+        errorMsg.textContent = "Preencha todos os campos.";
+        return;
+      }
+
       if (validUsers[user] === pass) {
+        errorMsg.textContent = "";
         document.getElementById("login").classList.remove("active");
         document.getElementById("panel").classList.add("active");
       } else {
         errorMsg.textContent = "Usuário ou senha inválidos. Tente novamente.";
       }
     }
+
+    document.getElementById("login-form").addEventListener("submit", function(event) {
+      event.preventDefault(); // evita recarregar página / mudar URL
+      login();
+    });
 
     function setInputMode(mode) {
       document.getElementById("localInputDiv").style.display = (mode === "local") ? "block" : "none";
@@ -224,7 +249,7 @@
     fileInput.addEventListener("change", () => {
       Array.from(fileInput.files).forEach(file => {
         const url = URL.createObjectURL(file);
-        localMedia.push({ url, type: file.type });
+        localMedia.push({ url, type: file.type.startsWith("video") ? "video" : "image" });
       });
       updateFileList();
     });
@@ -233,15 +258,10 @@
       const url = document.getElementById("urlInput").value.trim();
       if (url) {
         let type = "link";
-        if (url.includes("youtube.com") || url.includes("youtu.be")) {
-          type = "youtube";
-        } else if (url.match(/\.(jpeg|jpg|gif|png)$/i)) {
-          type = "image";
-        } else if (url.match(/\.(mp4|webm|ogg)$/i)) {
-          type = "video";
-        }
-        const mediaObj = { url, type };
-        localMedia.push(mediaObj);
+        if (url.includes("youtube.com") || url.includes("youtu.be")) type = "youtube";
+        else if (url.match(/\.(jpeg|jpg|gif|png)$/i)) type = "image";
+        else if (url.match(/\.(mp4|webm|ogg)$/i)) type = "video";
+        localMedia.push({ url, type });
         saveLinks();
         updateFileList();
         document.getElementById("urlInput").value = "";
@@ -253,127 +273,151 @@
       localStorage.setItem("mediaLinks", JSON.stringify(savedLinks));
     }
 
+    function loadSavedLinks() {
+      const saved = localStorage.getItem("mediaLinks");
+      if (saved) {
+        const arr = JSON.parse(saved);
+        arr.forEach(item => localMedia.push(item));
+        updateFileList();
+      }
+    }
+
     function clearSavedLinks() {
+      localMedia = localMedia.filter(item => !item.url.startsWith("http"));
       localStorage.removeItem("mediaLinks");
-      localMedia = localMedia.filter(item => item.url.startsWith("blob:"));
       updateFileList();
     }
 
     function updateFileList() {
       fileList.innerHTML = "";
-      localMedia.forEach(item => {
+      localMedia.forEach((item, idx) => {
         const li = document.createElement("li");
-        li.textContent = item.url;
+        li.textContent = `${idx + 1}. ${item.url}`;
         fileList.appendChild(li);
       });
     }
 
     function startProjection() {
-      const duration = parseInt(document.getElementById("img-duration").value) * 1000;
-      const withSound = document.getElementById("video-sound").value === "yes";
-      const playFull = document.getElementById("video-full").value === "yes";
-
       if (localMedia.length === 0) {
-        alert("Por favor, selecione ou adicione uma mídia.");
+        alert("Selecione ou adicione mídias para projetar.");
         return;
       }
-
+      current = 0;
       document.getElementById("panel").classList.remove("active");
       document.getElementById("projecao").classList.add("active");
+      showMedia();
+    }
 
+    function showMedia() {
       const container = document.getElementById("mediaContainer");
       container.innerHTML = "";
       elements = [];
-      current = 0;
-      isPaused = false;
-      document.getElementById("pauseOverlay").style.display = "none";
 
-      localMedia.forEach(item => {
-        let el;
-        if (item.type === "youtube") {
-          el = document.createElement("iframe");
-          const videoId = item.url.split("v=")[1]?.split("&")[0] || item.url.split("/").pop();
-          el.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${withSound ? 0 : 1}`;
-          el.allow = "autoplay";
-        } else if (item.type.startsWith("video") || item.type === "video") {
-          el = document.createElement("video");
-          el.muted = !withSound;
-          el.controls = false;
-          el.src = item.url;
-        } else {
-          el = document.createElement("img");
-          el.src = item.url;
-        }
-        el.classList.add("media");
-        container.appendChild(el);
-        elements.push(el);
-      });
+      const media = localMedia[current];
+      if (!media) return;
 
-      showNext(duration, playFull);
-    }
+      if (media.type === "image") {
+        const img = document.createElement("img");
+        img.src = media.url;
+        img.className = "media visible";
+        container.appendChild(img);
+        elements.push(img);
+        setTimeout(nextMedia, getImageDuration() * 1000);
+      } else if (media.type === "video") {
+        const video = document.createElement("video");
+        video.src = media.url;
+        video.className = "media visible";
+        video.muted = (document.getElementById("video-sound").value === "no");
+        video.autoplay = true;
+        video.loop = false;
+        video.playsInline = true;
+        container.appendChild(video);
+        elements.push(video);
 
-    function showNext(duration, playFull) {
-      if (isPaused) return;
-
-      elements.forEach(el => el.classList.remove("visible"));
-      const el = elements[current];
-      el.classList.add("visible");
-
-      if (el.tagName === "VIDEO") {
-        el.currentTime = 0;
-        el.play();
-
-        if (playFull) {
-          el.onended = () => {
-            current = (current + 1) % elements.length;
-            showNext(duration, playFull);
-          };
+        if (document.getElementById("video-full").value === "yes") {
+          video.onended = nextMedia;
         } else {
           setTimeout(() => {
-            el.pause();
-            current = (current + 1) % elements.length;
-            showNext(duration, playFull);
+            video.pause();
+            nextMedia();
           }, 10000);
         }
-      } else {
-        setTimeout(() => {
-          current = (current + 1) % elements.length;
-          showNext(duration, playFull);
-        }, duration);
+      } else if (media.type === "youtube") {
+        // para Youtube: embede iframe
+        const iframe = document.createElement("iframe");
+        iframe.className = "media visible";
+        iframe.allow = "autoplay; encrypted-media";
+        iframe.allowFullscreen = true;
+
+        let videoId = "";
+        if (media.url.includes("youtube.com")) {
+          const urlParams = new URLSearchParams(new URL(media.url).search);
+          videoId = urlParams.get("v");
+        } else if (media.url.includes("youtu.be")) {
+          videoId = media.url.split("/").pop();
+        }
+        if (videoId) {
+          iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${document.getElementById("video-sound").value === "no" ? 1 : 0}&rel=0&loop=1&playlist=${videoId}`;
+          container.appendChild(iframe);
+          elements.push(iframe);
+          // deixa tocar 10s e avança
+          setTimeout(nextMedia, 10000);
+        } else {
+          nextMedia();
+        }
       }
+    }
+
+    function getImageDuration() {
+      const val = parseInt(document.getElementById("img-duration").value, 10);
+      return (val && val > 0) ? val : 10;
+    }
+
+    function nextMedia() {
+      if (isPaused) return; // se pausado, não avança
+      current = (current + 1) % localMedia.length;
+      showMedia();
     }
 
     function togglePause() {
       isPaused = !isPaused;
-      const overlay = document.getElementById("pauseOverlay");
+      const pauseOverlay = document.getElementById("pauseOverlay");
+      const pauseIcon = document.getElementById("pauseIcon");
+
       if (isPaused) {
-        overlay.style.display = "flex";
+        pauseOverlay.style.display = "flex";
+        pauseIcon.classList.remove("bi-pause-fill");
+        pauseIcon.classList.add("bi-play-fill");
+
+        // pause videos
         elements.forEach(el => {
           if (el.tagName === "VIDEO") el.pause();
+          if (el.tagName === "IFRAME") {
+            // Não conseguimos controlar iframe do YouTube via JS simples
+          }
         });
       } else {
-        overlay.style.display = "none";
-        showNext(
-          parseInt(document.getElementById("img-duration").value) * 1000,
-          document.getElementById("video-full").value === "yes"
-        );
+        pauseOverlay.style.display = "none";
+        pauseIcon.classList.remove("bi-play-fill");
+        pauseIcon.classList.add("bi-pause-fill");
+
+        // play videos
+        elements.forEach(el => {
+          if (el.tagName === "VIDEO") el.play();
+        });
       }
     }
 
-    window.onload = () => {
-      const saved = JSON.parse(localStorage.getItem("mediaLinks") || "[]");
-      saved.forEach(obj => localMedia.push(obj));
-      updateFileList();
-      
-      // identificar se é tv ou computador
-      const isTV = window.location.search.includes('tv=true');  // exemplo de parametro na url
-      if (isTV) {
-        // pra tv nao existe login, so começa a projeçao
-        document.getElementById("projecao").classList.add("active");
-      } else {
-        document.getElementById("login").classList.add("active");
-      }
-    };
+    function backToPanel() {
+      isPaused = false;
+      elements = [];
+      document.getElementById("projecao").classList.remove("active");
+      document.getElementById("panel").classList.add("active");
+    }
+
+    // Inicializa modo local e carrega links salvos no início
+    setInputMode('local');
+    loadSavedLinks();
   </script>
 </body>
 </html>

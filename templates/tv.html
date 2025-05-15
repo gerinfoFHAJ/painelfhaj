@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Projeção FHAJ</title>
+  <style>
+    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; background: black; }
+    .media {
+      position: absolute;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s ease;
+    }
+    .visible { opacity: 1; z-index: 1; }
+  </style>
+</head>
+<body>
+  <div id="mediaContainer"></div>
+
+  <script>
+    const container = document.getElementById("mediaContainer");
+    let elements = [];
+    let current = 0;
+
+    function showNext() {
+      elements.forEach(el => el.classList.remove("visible"));
+      const el = elements[current];
+      el.classList.add("visible");
+
+      if (el.tagName === "VIDEO") {
+        el.currentTime = 0;
+        el.play();
+        el.onended = () => {
+          current = (current + 1) % elements.length;
+          showNext();
+        };
+      } else {
+        setTimeout(() => {
+          current = (current + 1) % elements.length;
+          showNext();
+        }, 10000); // 10 segundos para imagens
+      }
+    }
+
+    fetch("/api/midias")
+      .then(res => res.json())
+      .then(midias => {
+        if (midias.length === 0) {
+          document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:40vh;'>Nenhuma mídia encontrada</h1>";
+          return;
+        }
+
+        midias.forEach(media => {
+          let el;
+          if (media.type === "video") {
+            el = document.createElement("video");
+            el.src = media.url;
+            el.autoplay = true;
+            el.muted = true;
+            el.loop = false;
+            el.controls = false;
+          } else {
+            el = document.createElement("img");
+            el.src = media.url;
+          }
+          el.classList.add("media");
+          container.appendChild(el);
+        });
+
+        elements = Array.from(container.children);
+        showNext();
+      })
+      .catch(() => {
+        document.body.innerHTML = "<h1 style='color:white;text-align:center;margin-top:40vh;'>Erro ao carregar mídias</h1>";
+      });
+  </script>
+</body>
+</html>
